@@ -58,7 +58,7 @@ interface KehadiranData {
 }
 
 const endpoint =
-  "https://script.google.com/macros/s/AKfycbymrpUJ5IUKBlMeCINd0oO9XCjSiMfazV-6ZdHqO-oKUDo26Joa3KyPOtQhw991MZA8/exec";
+  "https://script.google.com/macros/s/AKfycbwn0LNmAdob8ZNCOTh9PUXsH7mjXFLQMUPtSObTtDN0ehbMT99SBmXN0jWns3kyis3XeQ/exec";
 
 const throttle = (func: Function, delay: number) => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -1675,93 +1675,85 @@ const InputNilai = () => {
       doc.text(`Total siswa: ${actualData.length}`, margin, currentY + 5);
 
       // ─── AMBIL DATA TP DARI INDEXEDDB + FALLBACK SERVER ───
-      let tpTableData: { tp: string; rincian: string; bab: string }[] = [];
-      try {
-        const mapelName = actualData[0]?.Data1 || "";
-        const kelasName = (actualData[0]?.Data3 || "").replace(/[^0-9]/g, "");
-        const semesterName = actualData[0]?.Data2 || "";
-        const semesterAngka = String(parseInt(semesterName) || semesterName);
-        const kelasAngka = kelasName.replace(/[^0-9]/g, "");
+let tpTableData: { tp: string; rincian: string; bab: string }[] = [];
+try {
+  const mapelName = actualData[0]?.Data1 || "";
+  const kelasName = (actualData[0]?.Data3 || "").replace(/[^0-9]/g, "");
+  const semesterName = actualData[0]?.Data2 || "";
+  const semesterAngka = String(parseInt(semesterName) || semesterName);
+  const kelasAngka = kelasName.replace(/[^0-9]/g, "");
 
-        // Coba dari IndexedDB dulu, fallback ke server jika kosong
-        let tpRows: any[] = [];
-        const tpCached = await idbLoad(STORE_TP);
-        if (tpCached && tpCached.length > 1) {
-          tpRows = tpCached.slice(1);
-          console.log(
-            `✅ Pakai data TP dari IndexedDB: ${tpRows.length} baris`
-          );
-        } else {
-          console.warn(
-            "⚠️ IndexedDB STORE_TP kosong, fetch DataTP dari server..."
-          );
-          try {
-            const tpRes = await fetch(`${endpoint}?sheet=DataTP`);
-            if (tpRes.ok) {
-              const tpJson = await tpRes.json();
-              if (tpJson.length > 1) {
-                tpRows = tpJson.slice(1);
-                console.log(
-                  `✅ Fallback berhasil: ${tpRows.length} baris TP dari server`
-                );
-              }
-            }
-          } catch (fetchErr) {
-            console.warn("Gagal fetch DataTP dari server:", fetchErr);
-          }
+  // Coba dari IndexedDB dulu, fallback ke server jika kosong
+  let tpRows: any[] = [];
+  const tpCached = await idbLoad(STORE_TP);
+  if (tpCached && tpCached.length > 1) {
+    tpRows = tpCached.slice(1);
+    console.log(`✅ Pakai data TP dari IndexedDB: ${tpRows.length} baris`);
+  } else {
+    console.warn("⚠️ IndexedDB STORE_TP kosong, fetch DataTP dari server...");
+    try {
+      const tpRes = await fetch(`${endpoint}?sheet=DataTP`);
+      if (tpRes.ok) {
+        const tpJson = await tpRes.json();
+        if (tpJson.length > 1) {
+          tpRows = tpJson.slice(1);
+          console.log(`✅ Fallback berhasil: ${tpRows.length} baris TP dari server`);
         }
-
-        if (tpRows.length > 0) {
-          console.log("🔎 ALL KEYS di row pertama:", Object.keys(tpRows[0]));
-          console.log("🔎 Full row pertama:", JSON.stringify(tpRows[0]));
-
-          tpTableData = tpRows
-            .filter((row: any) => {
-              const rowMapel = (row.Data1 || "")
-                .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
-                .trim();
-              const rowKelas = String(row.Data6 ?? "").trim();
-              const rowSemester = String(row.Data5 ?? "").trim();
-              console.log(
-                `🔍 Cek: mapel="${rowMapel}" kelas="${rowKelas}" sem="${rowSemester}" | target: "${mapelName}" "${kelasAngka}" "${semesterAngka}"`
-              );
-              return (
-                rowMapel.toLowerCase() === mapelName.toLowerCase() &&
-                rowKelas === kelasAngka &&
-                rowSemester === semesterAngka
-              );
-            })
-            .map((row: any) => ({
-              bab: String(row.Data4 || "")
-                .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
-                .trim(),
-              tp: String(row.Data2 || "")
-                .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
-                .trim(),
-              rincian: String(row.Data3 || "")
-                .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
-                .trim(),
-            }))
-            .filter((item: any) => item.tp && item.rincian)
-            .sort((a: any, b: any) => {
-              const babA = parseFloat(a.bab) || 0;
-              const babB = parseFloat(b.bab) || 0;
-              if (babA !== babB) return babA - babB;
-              const [, subA] = a.tp.split(".").map(Number);
-              const [, subB] = b.tp.split(".").map(Number);
-              return (subA || 0) - (subB || 0);
-            });
-          console.log(
-            `✅ DataTP final: ${tpTableData.length} TP ditemukan untuk ${mapelName} Kelas ${kelasAngka} Sem ${semesterAngka}`
-          );
-        } else {
-          console.warn(
-            "⚠️ Tidak ada data TP sama sekali, tabel TP tidak ditampilkan"
-          );
-        }
-      } catch (e) {
-        console.warn("Gagal load DataTP:", e);
       }
+    } catch (fetchErr) {
+      console.warn("Gagal fetch DataTP dari server:", fetchErr);
+    }
+  }
+
+  if (tpRows.length > 0) {
+    console.log("🔎 ALL KEYS di row pertama:", Object.keys(tpRows[0]));
+    console.log("🔎 Full row pertama:", JSON.stringify(tpRows[0]));
+
+    tpTableData = tpRows
+      .filter((row: any) => {
+        const rowMapel = (row.Data1 || "")
+          .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
+          .trim();
+        const rowKelas = String(row.Data6 ?? "").trim();
+        const rowSemester = String(row.Data5 ?? "").trim();
+        console.log(
+          `🔍 Cek: mapel="${rowMapel}" kelas="${rowKelas}" sem="${rowSemester}" | target: "${mapelName}" "${kelasAngka}" "${semesterAngka}"`
+        );
+        return (
+          rowMapel.toLowerCase() === mapelName.toLowerCase() &&
+          rowKelas === kelasAngka &&
+          rowSemester === semesterAngka
+        );
+      })
+      .map((row: any) => ({
+        bab: String(row.Data4 || "")
+          .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
+          .trim(),
+        tp: String(row.Data2 || "")
+          .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
+          .trim(),
+        rincian: String(row.Data3 || "")
+          .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
+          .trim(),
+      }))
+      .filter((item: any) => item.tp && item.rincian)
+      .sort((a: any, b: any) => {
+        const babA = parseFloat(a.bab) || 0;
+        const babB = parseFloat(b.bab) || 0;
+        if (babA !== babB) return babA - babB;
+        const [, subA] = a.tp.split(".").map(Number);
+        const [, subB] = b.tp.split(".").map(Number);
+        return (subA || 0) - (subB || 0);
+      });
+    console.log(
+      `✅ DataTP final: ${tpTableData.length} TP ditemukan untuk ${mapelName} Kelas ${kelasAngka} Sem ${semesterAngka}`
+    );
+  } else {
+    console.warn("⚠️ Tidak ada data TP sama sekali, tabel TP tidak ditampilkan");
+  }
+} catch (e) {
+  console.warn("Gagal load DataTP:", e);
+}
 
       // ─── TABEL DAFTAR TP ───
       if (tpTableData.length > 0) {
@@ -11617,12 +11609,12 @@ const RekapNilai = () => {
           !dispH.toUpperCase().includes("N/A")
         );
       });
-      const excludeKeys = ["Data18"];
+      const excludeKeys = ["Data17"];
       const nilaiHeaders = rekapHeaders
         .slice(1)
         .filter((h) => !excludeKeys.includes(h));
       const mapelOnlyHeaders = nilaiHeaders.filter(
-        (h) => !["Data16", "Data17"].includes(h)
+        (h) => !["Data15", "Data16"].includes(h)
       );
 
       const getVals = (rows: any[], h: string) =>
@@ -11958,13 +11950,7 @@ const RekapNilai = () => {
       ];
 
       // Filter kolom yang tidak punya nama mapel valid
-      const fixedKeepHeaders = new Set([
-        "Data1",
-        "Data15",
-        "Data16",
-        "Data17",
-        "Data18",
-      ]);
+      const fixedKeepHeaders = new Set(["Data1", "Data15", "Data16", "Data17"]);
       const headers = allHeaders.filter((h) => {
         if (fixedKeepHeaders.has(h)) return true;
         const dispH = (data[0]?.[h] || "").trim();
@@ -11993,10 +11979,10 @@ const RekapNilai = () => {
       const namaColW = 60;
 
       // Kolom fixed (non-mapel): Data15=Jumlah, Data16=Rata-rata, Data17=Ranking
-      const fixedSpecialCols = new Set(["Data16", "Data17", "Data18"]);
+      const fixedSpecialCols = new Set(["Data15", "Data16", "Data17"]);
       // Hitung lebar fixedSpecial berdasarkan kata terpanjang di headernya
       doc.setFontSize(6);
-      const fixedSpecialHeaders = ["Data16", "Data17", "Data18"];
+      const fixedSpecialHeaders = ["Data15", "Data16", "Data17"];
       let fixedSpecialW = 14; // default minimum
       fixedSpecialHeaders.forEach((h) => {
         const dispH = (data[0][h] || "").toUpperCase();
@@ -12147,12 +12133,12 @@ const RekapNilai = () => {
           return lines.join("\n");
         });
 
-        const excludeKeys = ["Data18"];
+        const excludeKeys = ["Data17"];
         const nilaiHeaders = headers
           .slice(1)
           .filter((h) => !excludeKeys.includes(h));
         const mapelOnlyHeaders = nilaiHeaders.filter(
-          (h) => !["Data16", "Data17"].includes(h)
+          (h) => !["Data15", "Data16"].includes(h)
         );
 
         const getVals = (h: string) =>
@@ -12766,46 +12752,33 @@ const RekapNilai = () => {
       const rightColTTD = 150;
       let y = 35;
 
-      const colonLeft = leftCol + 33; // posisi titik dua kolom kiri
-      const colonRight = rightCol + 30; // posisi titik dua kolom kanan
+      const colonLeft = leftCol + 33;  // posisi titik dua kolom kiri
+const colonRight = rightCol + 30; // posisi titik dua kolom kanan
 
-      doc.text("Nama Peserta Didik", leftCol, y);
-      doc.text(": " + namaSiswa.toUpperCase(), colonLeft, y);
-      doc.text("Kelas", rightCol, y);
-      doc.text(": " + kelas, colonRight, y);
+doc.text("Nama Peserta Didik", leftCol, y);
+doc.text(": " + namaSiswa.toUpperCase(), colonLeft, y);
+doc.text("Kelas", rightCol, y);
+doc.text(": " + kelas, colonRight, y);
 
-      y += 7;
-      doc.text("NISN", leftCol, y);
-      doc.text(`: ${nisn}`, colonLeft, y);
-      doc.text("Fase", rightCol, y);
-      doc.text(`: ${getFase(kelas)}`, colonRight, y);
+y += 7;
+doc.text("NISN", leftCol, y);
+doc.text(`: ${nisn}`, colonLeft, y);
+doc.text("Fase", rightCol, y);
+doc.text(`: ${getFase(kelas)}`, colonRight, y);
 
-      y += 7;
-      doc.text("Nama Sekolah", leftCol, y);
-      doc.text(
-        ": " + (latestSchoolData?.namaSekolah || "UPT SD NEGERI 2 BATANG"),
-        colonLeft,
-        y
-      );
-      doc.text("Semester", rightCol, y);
-      doc.text(": " + selectedSemester, colonRight, y);
+y += 7;
+doc.text("Nama Sekolah", leftCol, y);
+doc.text(": " + (latestSchoolData?.namaSekolah || "UPT SD NEGERI 2 BATANG"), colonLeft, y);
+doc.text("Semester", rightCol, y);
+doc.text(": " + selectedSemester, colonRight, y);
 
-      y += 7;
-      doc.text("Alamat Sekolah", leftCol, y);
-      const alamatLengkap = `${
-        latestSchoolData?.alamatSekolah || "Desa Bungeng, Kecamatan Batang"
-      }, ${latestSchoolData?.kabKota || ""}`;
-      const alamatLines = doc.splitTextToSize(
-        ": " + alamatLengkap,
-        rightCol - colonLeft - 5
-      );
-      doc.text(alamatLines, colonLeft, y);
-      doc.text("Tahun Pelajaran", rightCol, y);
-      doc.text(
-        ": " + (latestSchoolData?.tahunPelajaran || "2023/2024"),
-        colonRight,
-        y
-      );
+y += 7;
+doc.text("Alamat Sekolah", leftCol, y);
+const alamatLengkap = `${latestSchoolData?.alamatSekolah || "Desa Bungeng, Kecamatan Batang"}, ${latestSchoolData?.kabKota || ""}`;
+const alamatLines = doc.splitTextToSize(": " + alamatLengkap, rightCol - colonLeft - 5);
+doc.text(alamatLines, colonLeft, y);
+doc.text("Tahun Pelajaran", rightCol, y);
+doc.text(": " + (latestSchoolData?.tahunPelajaran || "2023/2024"), colonRight, y);
 
       // ✅ FILTER sheet berdasarkan semester
       const semesterSheets = availableSheets.filter(
@@ -13063,7 +13036,7 @@ const RekapNilai = () => {
       additionalY = doc.lastAutoTable.finalY + 10;
 
       // Identifikasi kolom ranking (SESUAIKAN dengan kolom ranking Anda!)
-      const rankingKey = "Data18"; // ⚠️ UBAH ini sesuai kolom ranking di sheet Anda
+      const rankingKey = "Data17"; // ⚠️ UBAH ini sesuai kolom ranking di sheet Anda
       const ranking = rowData[rankingKey]
         ? parseInt(rowData[rankingKey])
         : null;
@@ -13468,7 +13441,7 @@ const RekapNilai = () => {
 
   const hiddenHeaders = new Set(["Data2", "Data3", "Data4", "Data5"]);
 
-  const fixedKeepHeaders = new Set(["Data1", "Data16", "Data17", "Data18"]);
+  const fixedKeepHeaders = new Set(["Data1", "Data15", "Data16", "Data17"]);
 
   const headers = allHeaders.filter((h) => {
     if (hiddenHeaders.has(h)) return false; // ← sembunyikan kolom ini
@@ -13858,7 +13831,7 @@ const RekapNilai = () => {
             ))}
             {(() => {
               // Kolom nilai dimulai dari Data6 (index 5 di headers)
-              const excludeKeys = ["Data18"];
+              const excludeKeys = ["Data17"];
               const nilaiHeaders = headers
                 .slice(1)
                 .filter((h) => !excludeKeys.includes(h));
@@ -13905,7 +13878,7 @@ const RekapNilai = () => {
 
               // Kolom mapel murni (tidak termasuk Data15, Data16, Data17)
               const mapelOnlyHeaders = nilaiHeaders.filter(
-                (h) => !["Data16", "Data17"].includes(h)
+                (h) => !["Data15", "Data16"].includes(h)
               );
 
               // Hitung horizontal untuk kolom Data15 dan Data16
